@@ -37,6 +37,7 @@ executable mrc
   -- other-extensions:    
   build-depends:       
       base >=4.6 && < 5
+    , parsec
     , moonrock -any
   hs-source-dirs:
     compiler
