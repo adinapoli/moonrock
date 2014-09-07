@@ -2,8 +2,7 @@
 module Language.MoonRock.Parser where
 
 
-import Control.Applicative hiding ((<|>), many)
-import Text.Parsec
+import Control.Applicative hiding ((<|>), many, optional)
 import Text.Parsec.Language
 import Text.Parsec.Token
 import Text.ParserCombinators.Parsec
@@ -17,7 +16,7 @@ rubyDef = LanguageDef
             , commentLine    = "#"
             , nestedComments = True
             , identStart     = letter
-            , identLetter    = alphaNum <|> oneOf ['_']
+            , identLetter    = alphaNum <|> oneOf ['_', '@']
             , opStart        = opLetter emptyDef
             , opLetter       = oneOf ":!#$%&*+./<=>?@\\^|-~"
             , reservedOpNames= [
@@ -73,7 +72,7 @@ dynFunDecl = do
   spaces
   name <- identifier lexer
   args <- parentsP (commaP dynIdentifier)
-  body <- many dynExpr
+  body <- sepBy dynExpr (many newline)
   reserved lexer "end"
   return $ DynFunDecl loc name args body
 
@@ -96,16 +95,99 @@ dynDouble :: Parser DynExpr
 dynDouble = getPosition >>= \p ->
   fmap (DynNum p . DDouble) (float lexer)
 
+dynMethodAccess :: Parser DynExpr
+dynMethodAccess = do
+  spaces
+  loc <- getPosition
+  callChain <- sepBy dynIdentifier (dot lexer)
+  return $ DynMethodAccess loc callChain
+ 
+
+-- Not sure that the distinction between DynVar
+-- and DynMethodAccess is the way to go.
+dynVar :: Parser DynExpr
+dynVar = do
+  spaces
+  loc <- getPosition
+  callChain <- dynMethodAccess <|> dynIdentifier
+  spaces
+  reservedOp lexer "="
+  spaces
+  expr <- dynMethodAccess <|> dynNumber <|> dynIdentifier <|> dynString
+  return $ DynVar loc callChain expr
+
+
+dynSymbol :: Parser DynExpr
+dynSymbol = do
+  spaces
+  loc <- getPosition
+  syml <- char ':' *> identifier lexer
+  return $ DynSymbol loc syml
+
+dynTrue :: Parser DynExpr
+dynTrue = do
+  loc <- getPosition
+  reserved lexer "true"
+  return $ DynBool loc True
+
+dynFalse :: Parser DynExpr
+dynFalse = do
+  loc <- getPosition
+  reserved lexer "false"
+  return $ DynBool loc False
+
+dynBool :: Parser DynExpr
+dynBool = dynTrue <|> dynFalse
+
 dynNumber :: Parser DynExpr
 dynNumber =  dynInt
          <|> dynDouble
 
+classAncestor :: Parser Class
+classAncestor = try $ do
+  spaces
+  reservedOp lexer "<"
+  spaces
+  cn <- className
+  return $ Class cn Nothing
+
+className :: Parser String
+className = do
+  start <- upper
+  rest  <- identifier lexer
+  return $ start : rest
+
+dynClassDecl :: Parser DynExpr
+dynClassDecl = do
+  spaces
+  loc <- getPosition
+  reserved lexer "class"
+  cn <- className
+  ancestor <- optionMaybe classAncestor
+  body <- sepBy dynExpr (many newline)
+  reserved lexer "end"
+  let thisClass = Class cn ancestor
+  return $ DynClassDecl loc thisClass body
+
+-- Remember, the lookup order does count
 dynExpr :: Parser DynExpr
-dynExpr =  dynNumber
+dynExpr = dynVar
+       <|> dynNumber
        <|> dynString
+       <|> dynBool
        <|> dynModuleImport
        <|> dynIdentifier
        <|> dynFunDecl
+       <|> dynClassDecl
+
+dynHashBang :: Parser ()
+dynHashBang = optional $ try $ do
+  _ <- string "#!"
+  skipMany1 (noneOf "\n")
+  _ <- newline
+  return ()
 
 rubyFile :: Parser [DynExpr]
-rubyFile = sepBy dynExpr (many newline)
+rubyFile = do
+  dynHashBang
+  sepBy dynExpr (many newline)
