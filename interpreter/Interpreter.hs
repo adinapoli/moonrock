@@ -3,6 +3,7 @@ module Main where
 
 import Language.MoonRock.Evaluator
 import Language.MoonRock.Parser
+import Language.MoonRock.Pretty
 import Control.Monad
 import System.IO
 
@@ -10,14 +11,16 @@ import Text.ParserCombinators.Parsec
 
 repl :: Int -> IO ()
 repl !instr = do
-  putStr $ ":" ++ show instr ++ "> "
+  putStr $ ":" ++ show instr ++ " > "
   txt <- getLine
   unless (txt == "quit()") $ do
     case parse rubyFile "" txt of
       Left e -> print e
       Right d -> do
         let evl = eval d
-        putStrLn $ "=> " ++ show evl
+        putStr " => "
+        mapM_ display evl
+        putStrLn ""
     repl (instr + 1)
 
 

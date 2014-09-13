@@ -79,21 +79,28 @@ dynFunDecl = do
 
 rubyStr :: Parser String
 rubyStr = stringLiteral lexer <|>
-          (between (char '\'')
-                   (char '\'')
-                   (many1 (noneOf ['\'', '\n'])))
+          between (char '\'')
+                  (char '\'')
+                  (many1 (noneOf ['\'', '\n']))
 
 dynString :: Parser DynExpr
 dynString = getPosition >>= \p ->
   fmap (DynString p) rubyStr
 
+
 dynInt :: Parser DynExpr
 dynInt = getPosition >>= \p ->
   fmap (DynNum p . DInt) (integer lexer)
 
+
 dynDouble :: Parser DynExpr
 dynDouble = getPosition >>= \p ->
   fmap (DynNum p . DDouble) (float lexer)
+
+
+dynNumber :: Parser DynExpr
+dynNumber =  try dynInt <|> try dynDouble
+
 
 dynMethodAccess :: Parser DynExpr
 dynMethodAccess = do
@@ -102,6 +109,34 @@ dynMethodAccess = do
   callChain <- sepBy dynIdentifier (dot lexer)
   return $ DynMethodAccess loc callChain
  
+--
+-- DynOp
+--
+dynPlus :: Parser DynExpr
+dynPlus = do
+ spaces
+ s1 <- dynNumber
+ spaces
+ reservedOp lexer "+"
+ loc <- getPosition
+ spaces
+ s2 <- dynNumber
+ return $ DynOp loc (DPlus s1 s2)
+
+dynSub :: Parser DynExpr
+dynSub = do
+ spaces
+ s1 <- dynNumber
+ spaces
+ reservedOp lexer "-"
+ loc <- getPosition
+ spaces
+ s2 <- dynNumber
+ return $ DynOp loc (DSub s1 s2)
+
+dynOp :: Parser DynExpr
+dynOp =  try dynPlus
+     <|> try dynSub
 
 -- Not sure that the distinction between DynVar
 -- and DynMethodAccess is the way to go.
@@ -137,11 +172,7 @@ dynFalse = do
   return $ DynBool loc False
 
 dynBool :: Parser DynExpr
-dynBool = dynTrue <|> dynFalse
-
-dynNumber :: Parser DynExpr
-dynNumber =  dynInt
-         <|> dynDouble
+dynBool = try dynTrue <|> try dynFalse
 
 classAncestor :: Parser Class
 classAncestor = try $ do
@@ -171,14 +202,15 @@ dynClassDecl = do
 
 -- Remember, the lookup order does count
 dynExpr :: Parser DynExpr
-dynExpr = dynVar
-       <|> dynNumber
-       <|> dynString
-       <|> dynBool
-       <|> dynModuleImport
-       <|> dynIdentifier
-       <|> dynFunDecl
-       <|> dynClassDecl
+dynExpr =  try dynVar
+       <|> try dynOp
+       <|> try dynNumber
+       <|> try dynString
+       <|> try dynBool
+       <|> try dynModuleImport
+       <|> try dynIdentifier
+       <|> try dynFunDecl
+       <|> try dynClassDecl
 
 dynHashBang :: Parser ()
 dynHashBang = optional $ try $ do

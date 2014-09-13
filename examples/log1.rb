@@ -13,11 +13,13 @@ class MyApp < Logger
     x.logger = "Doesn't have any sense"
     x.logger.message = "10"
     x.logger.bar = y.foo.baz
+    9 + 0
   end
 
   def anotherFunc()
     10
     "Hello"
+    7 - 15
   end
 
   def func2()
@@ -31,3 +33,5 @@ class MyApp < Logger
 
   end
 end
+
+"This stuff ends here."

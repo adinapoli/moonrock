@@ -9,6 +9,14 @@ data DNum =
   | DDouble Double
   deriving Show
 
+data DOp =
+    DPlus  DynExpr DynExpr
+  | DSub DynExpr DynExpr
+  | DNot DynExpr
+  | DLoginAnd DynExpr DynExpr
+  | DLoginOr DynExpr DynExpr
+  deriving Show
+
 data Class = Class String (Maybe Class) deriving Show
 
 data DynExpr =
@@ -20,6 +28,7 @@ data DynExpr =
   | DynSymbol Loc String
   | DynModuleImport Loc String
   | DynVar Loc DynExpr DynExpr
+  | DynOp Loc DOp
   | DynMethodAccess Loc [DynExpr]
   | DynClassDecl Loc Class [DynExpr]
   | DynBlock Loc [DynExpr] [DynExpr]
