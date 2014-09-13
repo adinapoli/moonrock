@@ -13,8 +13,8 @@ data DOp =
     DPlus  DynExpr DynExpr
   | DSub DynExpr DynExpr
   | DNot DynExpr
-  | DLoginAnd DynExpr DynExpr
-  | DLoginOr DynExpr DynExpr
+  | DLogicAnd DynExpr DynExpr
+  | DLogicOr DynExpr DynExpr
   deriving Show
 
 data Class = Class String (Maybe Class) deriving Show

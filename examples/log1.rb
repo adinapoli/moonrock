@@ -35,3 +35,5 @@ class MyApp < Logger
 end
 
 "This stuff ends here."
+true && true # This must yield true
+true || true # and so this should

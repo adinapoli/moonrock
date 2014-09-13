@@ -99,7 +99,8 @@ dynDouble = getPosition >>= \p ->
 
 
 dynNumber :: Parser DynExpr
-dynNumber =  try dynInt <|> try dynDouble
+dynNumber =  try dynInt
+         <|> try dynDouble
 
 
 dynMethodAccess :: Parser DynExpr
@@ -134,9 +135,42 @@ dynSub = do
  s2 <- dynNumber
  return $ DynOp loc (DSub s1 s2)
 
+dynNot :: Parser DynExpr
+dynNot = do
+ spaces
+ reservedOp lexer "!"
+ loc <- getPosition
+ b1 <- dynBool
+ return $ DynOp loc (DNot b1)
+
+dynLogicAnd :: Parser DynExpr
+dynLogicAnd = do
+ spaces
+ s1 <- dynBool
+ spaces
+ reservedOp lexer "&&"
+ loc <- getPosition
+ spaces
+ s2 <- dynBool
+ return $ DynOp loc (DLogicAnd s1 s2)
+
+dynLogicOr :: Parser DynExpr
+dynLogicOr = do
+ spaces
+ s1 <- dynBool
+ spaces
+ reservedOp lexer "||"
+ loc <- getPosition
+ spaces
+ s2 <- dynBool
+ return $ DynOp loc (DLogicOr s1 s2)
+
 dynOp :: Parser DynExpr
 dynOp =  try dynPlus
      <|> try dynSub
+     <|> try dynNot
+     <|> try dynLogicAnd
+     <|> try dynLogicOr
 
 -- Not sure that the distinction between DynVar
 -- and DynMethodAccess is the way to go.
