@@ -7,6 +7,7 @@ import Text.Parsec.Language
 import Text.Parsec.Token
 import Text.ParserCombinators.Parsec
 import Language.MoonRock.AST
+import Data.Maybe
 
 
 rubyDef :: LanguageDef s
@@ -179,6 +180,32 @@ dynEqual = dynEquality "==" DEqual
 dynNEqual :: Parser DynExpr
 dynNEqual = dynEquality "!=" DNEqual
 
+
+dynIf :: Parser DynExpr
+dynIf = do
+  spaces
+  reserved lexer "if"
+  loc <- getPosition
+  spaces
+  pred' <- dynConditional
+  spaces
+  try $ optional (reserved lexer "then")
+  spaces
+  ifBody <- many1 dynTerm
+  elseB <- optionMaybe $ try $ do
+             reserved lexer "else"
+             many1 dynTerm
+  reserved lexer "end"
+  let else' = fromMaybe [] elseB
+  return $ DynOp loc (DIf pred' ifBody else')
+  
+dynConditional :: Parser DynExpr
+dynConditional =  try dynBool
+              <|> try dynLogicAnd
+              <|> try dynLogicOr
+              <|> try dynEqual
+              <|> try dynNEqual
+
 dynOp :: Parser DynExpr
 dynOp =  try dynPlus
      <|> try dynSub
@@ -187,6 +214,7 @@ dynOp =  try dynPlus
      <|> try dynLogicOr
      <|> try dynEqual
      <|> try dynNEqual
+     <|> try dynIf
 
 -- Not sure that the distinction between DynVar
 -- and DynMethodAccess is the way to go.
@@ -264,12 +292,12 @@ dynTerm =  try dynIdentifier
 
 -- Remember, the lookup order does count
 dynExpr :: Parser DynExpr
-dynExpr =  try dynOp
-       <|> try dynVar
-       <|> try dynTerm
-       <|> try dynModuleImport
-       <|> try dynFunDecl
-       <|> try dynClassDecl
+dynExpr =  dynOp
+       <|> dynVar
+       <|> dynTerm
+       <|> dynModuleImport
+       <|> dynFunDecl
+       <|> dynClassDecl
 
 dynHashBang :: Parser ()
 dynHashBang = optional $ try $ do

@@ -32,6 +32,18 @@ class MyApp < Logger
     3 == 4
     true != false
     x = true != false
+    if true then "HallO" else "boo" end
+    # Then is optional
+
+    if x == 10
+      10
+    end
+
+   # if true != true 
+   #     30
+   # else
+   #     23
+   # end
 
   end
 end

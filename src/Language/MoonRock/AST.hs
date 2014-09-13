@@ -15,6 +15,7 @@ data DOp =
   | DNot DynExpr
   | DEqual DynExpr DynExpr
   | DNEqual DynExpr DynExpr
+  | DIf DynExpr [DynExpr] [DynExpr]
   | DLogicAnd DynExpr DynExpr
   | DLogicOr DynExpr DynExpr
   deriving Show
