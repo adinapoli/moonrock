@@ -29,7 +29,9 @@ class MyApp < Logger
 
     10
     "Hello"
-
+    3 == 4
+    true != false
+    x = true != false
 
   end
 end

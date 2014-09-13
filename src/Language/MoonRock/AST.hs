@@ -13,6 +13,8 @@ data DOp =
     DPlus  DynExpr DynExpr
   | DSub DynExpr DynExpr
   | DNot DynExpr
+  | DEqual DynExpr DynExpr
+  | DNEqual DynExpr DynExpr
   | DLogicAnd DynExpr DynExpr
   | DLogicOr DynExpr DynExpr
   deriving Show

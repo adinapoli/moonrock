@@ -21,7 +21,7 @@ rubyDef = LanguageDef
             , opLetter       = oneOf ":!#$%&*+./<=>?@\\^|-~"
             , reservedOpNames= [
               "+", "-", "^", "/", "%", "&", "|"
-            , ">", "<", "=", "!", "~"
+            , ">", "<", "=", "!", "~", "==", "!="
             ]
             , reservedNames  = [
                 "__LINE__", "__FILE__","__ENCODING__",
@@ -113,27 +113,25 @@ dynMethodAccess = do
 --
 -- DynOp
 --
-dynPlus :: Parser DynExpr
-dynPlus = do
+
+dynNumOp :: String
+         -> (DynExpr -> DynExpr -> DOp)
+         -> Parser DynExpr
+dynNumOp sym fn = do
  spaces
  s1 <- dynNumber
  spaces
- reservedOp lexer "+"
+ reservedOp lexer sym
  loc <- getPosition
  spaces
  s2 <- dynNumber
- return $ DynOp loc (DPlus s1 s2)
+ return $ DynOp loc (fn s1 s2)
+
+dynPlus :: Parser DynExpr
+dynPlus = dynNumOp "+" DPlus
 
 dynSub :: Parser DynExpr
-dynSub = do
- spaces
- s1 <- dynNumber
- spaces
- reservedOp lexer "-"
- loc <- getPosition
- spaces
- s2 <- dynNumber
- return $ DynOp loc (DSub s1 s2)
+dynSub = dynNumOp "-" DSub
 
 dynNot :: Parser DynExpr
 dynNot = do
@@ -143,27 +141,43 @@ dynNot = do
  b1 <- dynBool
  return $ DynOp loc (DNot b1)
 
-dynLogicAnd :: Parser DynExpr
-dynLogicAnd = do
+dynLogic :: String
+         -> (DynExpr -> DynExpr -> DOp)
+         -> Parser DynExpr
+dynLogic sym fn = do
  spaces
  s1 <- dynBool
  spaces
- reservedOp lexer "&&"
+ reservedOp lexer sym
  loc <- getPosition
  spaces
  s2 <- dynBool
- return $ DynOp loc (DLogicAnd s1 s2)
+ return $ DynOp loc (fn s1 s2)
+
+dynLogicAnd :: Parser DynExpr
+dynLogicAnd = dynLogic "&&" DLogicAnd
 
 dynLogicOr :: Parser DynExpr
-dynLogicOr = do
+dynLogicOr = dynLogic "||" DLogicOr
+
+dynEquality :: String
+            -> (DynExpr -> DynExpr -> DOp)
+            -> Parser DynExpr
+dynEquality sym fn = do
  spaces
- s1 <- dynBool
+ s1 <- dynTerm
  spaces
- reservedOp lexer "||"
+ reservedOp lexer sym
  loc <- getPosition
  spaces
- s2 <- dynBool
- return $ DynOp loc (DLogicOr s1 s2)
+ s2 <- dynTerm
+ return $ DynOp loc (fn s1 s2)
+
+dynEqual :: Parser DynExpr
+dynEqual = dynEquality "==" DEqual
+
+dynNEqual :: Parser DynExpr
+dynNEqual = dynEquality "!=" DNEqual
 
 dynOp :: Parser DynExpr
 dynOp =  try dynPlus
@@ -171,6 +185,8 @@ dynOp =  try dynPlus
      <|> try dynNot
      <|> try dynLogicAnd
      <|> try dynLogicOr
+     <|> try dynEqual
+     <|> try dynNEqual
 
 -- Not sure that the distinction between DynVar
 -- and DynMethodAccess is the way to go.
@@ -182,7 +198,11 @@ dynVar = do
   spaces
   reservedOp lexer "="
   spaces
-  expr <- dynMethodAccess <|> dynNumber <|> dynIdentifier <|> dynString
+  expr <-     try dynMethodAccess
+          <|> try dynNumber
+          <|> try dynIdentifier
+          <|> try dynString
+          <|> try dynOp
   return $ DynVar loc callChain expr
 
 
@@ -191,7 +211,7 @@ dynSymbol = do
   spaces
   loc <- getPosition
   syml <- char ':' *> identifier lexer
-  return $ DynSymbol loc syml
+  return $ DynSymbol loc (':' : syml)
 
 dynTrue :: Parser DynExpr
 dynTrue = do
@@ -234,15 +254,20 @@ dynClassDecl = do
   let thisClass = Class cn ancestor
   return $ DynClassDecl loc thisClass body
 
--- Remember, the lookup order does count
-dynExpr :: Parser DynExpr
-dynExpr =  try dynVar
-       <|> try dynOp
+
+dynTerm :: Parser DynExpr
+dynTerm =  try dynIdentifier
        <|> try dynNumber
        <|> try dynString
        <|> try dynBool
+       <|> try dynSymbol
+
+-- Remember, the lookup order does count
+dynExpr :: Parser DynExpr
+dynExpr =  try dynOp
+       <|> try dynVar
+       <|> try dynTerm
        <|> try dynModuleImport
-       <|> try dynIdentifier
        <|> try dynFunDecl
        <|> try dynClassDecl
 
