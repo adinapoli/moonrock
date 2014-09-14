@@ -233,6 +233,17 @@ dynVar = do
           <|> try dynOp
   return $ DynVar loc callChain expr
 
+dynList :: Parser DynExpr
+dynList = do
+  let bracketsP = brackets lexer
+  let commaP = comma lexer
+  let valid =  try dynTerm
+           <|> try dynOp
+           <|> try dynVar
+  spaces
+  loc <- getPosition
+  body <- bracketsP (sepBy valid commaP)
+  return $ DynList loc body
 
 dynSymbol :: Parser DynExpr
 dynSymbol = do
@@ -289,6 +300,7 @@ dynTerm =  try dynIdentifier
        <|> try dynString
        <|> try dynBool
        <|> try dynSymbol
+       <|> try dynList
 
 -- Remember, the lookup order does count
 dynExpr :: Parser DynExpr

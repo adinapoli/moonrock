@@ -1,5 +1,5 @@
 name:                moonrock
-version:             0.1.0.1
+version:             0.1.0.2
 synopsis:            A toy.
 description:         Ruby to Haskell compiler. One day.
 license:             MIT
@@ -11,6 +11,9 @@ category:            Language
 build-type:          Simple
 -- extra-source-files:  
 cabal-version:       >=1.10
+
+data-files:
+  moonrock.cabal
 
 library
   exposed-modules:
@@ -54,6 +57,9 @@ executable mrci
   build-depends:       
       base >=4.6 && < 5
     , parsec
+    , shelly >= 1.5.0.1
+    , text
+    , raw-strings-qq
     , moonrock -any
   hs-source-dirs:
     interpreter

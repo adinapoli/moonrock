@@ -12,4 +12,4 @@ eval (x:xs) = case x of
   DynString l s -> DynString l s : eval xs
   DynNum l n -> DynNum l n : eval xs
   DynSymbol l s -> DynSymbol l s : eval xs
-  _ -> error "To be implemented"
+  _ -> x : eval xs

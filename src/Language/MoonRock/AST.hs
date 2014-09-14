@@ -31,6 +31,7 @@ data DynExpr =
   | DynSymbol Loc String
   | DynModuleImport Loc String
   | DynVar Loc DynExpr DynExpr
+  | DynList Loc [DynExpr]
   | DynOp Loc DOp
   | DynMethodAccess Loc [DynExpr]
   | DynClassDecl Loc Class [DynExpr]

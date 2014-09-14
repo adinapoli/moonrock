@@ -39,11 +39,11 @@ class MyApp < Logger
       10
     end
 
-   # if true != true 
-   #     30
-   # else
-   #     23
-   # end
+   if true
+     30
+   else
+     "pojos"
+   end
 
   end
 end
