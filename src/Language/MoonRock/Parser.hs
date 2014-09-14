@@ -67,13 +67,14 @@ dynFunDecl :: Parser DynExpr
 dynFunDecl = do
   let parentsP = parens lexer
   let commaP = commaSep lexer
+  let semiP = semi lexer
   spaces
   reserved lexer "def"
   loc <- getPosition
   spaces
   name <- identifier lexer
   args <- parentsP (commaP dynIdentifier)
-  body <- sepBy dynExpr (many newline)
+  body <- sepBy dynExpr (try semiP <|> many newline)
   reserved lexer "end"
   return $ DynFunDecl loc name args body
 
@@ -201,13 +202,15 @@ dynIf = do
   reserved lexer "end"
   let else' = fromMaybe [] elseB
   return $ DynOp loc (DIf pred' ifBody else')
-  
+
+
 dynConditional :: Parser DynExpr
 dynConditional =  try dynBool
               <|> try dynLogicAnd
               <|> try dynLogicOr
               <|> try dynEqual
               <|> try dynNEqual
+
 
 dynOp :: Parser DynExpr
 dynOp =  try dynPlus
