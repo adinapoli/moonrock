@@ -134,6 +134,9 @@ dynPlus = dynNumOp "+" DPlus
 dynSub :: Parser DynExpr
 dynSub = dynNumOp "-" DSub
 
+dynMult :: Parser DynExpr
+dynMult = dynNumOp "*" DSub
+
 dynNot :: Parser DynExpr
 dynNot = do
  spaces
@@ -209,6 +212,7 @@ dynConditional =  try dynBool
 dynOp :: Parser DynExpr
 dynOp =  try dynPlus
      <|> try dynSub
+     <|> try dynMult
      <|> try dynNot
      <|> try dynLogicAnd
      <|> try dynLogicOr
@@ -304,7 +308,8 @@ dynTerm =  try dynIdentifier
 
 -- Remember, the lookup order does count
 dynExpr :: Parser DynExpr
-dynExpr =  dynOp
+dynExpr =  try (parens lexer dynExpr)
+       <|> dynOp
        <|> dynVar
        <|> dynTerm
        <|> dynModuleImport

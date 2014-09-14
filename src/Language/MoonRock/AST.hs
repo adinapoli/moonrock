@@ -12,6 +12,7 @@ data DNum =
 data DOp =
     DPlus  DynExpr DynExpr
   | DSub DynExpr DynExpr
+  | DMult DynExpr DynExpr
   | DNot DynExpr
   | DEqual DynExpr DynExpr
   | DNEqual DynExpr DynExpr
