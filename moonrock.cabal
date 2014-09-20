@@ -1,5 +1,5 @@
 name:                moonrock
-version:             0.1.0.2
+version:             0.1.0.3
 synopsis:            A toy.
 description:         Ruby to Haskell compiler. One day.
 license:             MIT
@@ -9,7 +9,7 @@ maintainer:          alfredo.dinapoli@gmail.com
 copyright:           Alfredo Di Napoli
 category:            Language
 build-type:          Simple
--- extra-source-files:  
+-- extra-source-files:
 cabal-version:       >=1.10
 
 data-files:
@@ -23,12 +23,13 @@ library
     Language.MoonRock.TypeChecker
     Language.MoonRock.Translator
     Language.MoonRock.Evaluator
-  -- other-modules:       
-  -- other-extensions:    
-  build-depends:       
+  -- other-modules:
+  -- other-extensions:
+  build-depends:
       base >=4.6 && < 5
     , parsec > 3.0.0.0
     , text >= 1.0.0.0
+    , mtl
     , haskell-src-exts >= 1.15.0.1
     , ansi-terminal >= 0.6.1.1
     , annotated-wl-pprint >= 0.5.3
@@ -39,9 +40,9 @@ library
 executable mrc
   main-is:
     Moonrock.hs
-  -- other-modules:       
-  -- other-extensions:    
-  build-depends:       
+  -- other-modules:
+  -- other-extensions:
+  build-depends:
       base >=4.6 && < 5
     , parsec
     , moonrock -any
@@ -52,9 +53,9 @@ executable mrc
 executable mrci
   main-is:
     Interpreter.hs
-  -- other-modules:       
-  -- other-extensions:    
-  build-depends:       
+  -- other-modules:
+  -- other-extensions:
+  build-depends:
       base >=4.6 && < 5
     , parsec
     , shelly >= 1.5.0.1
@@ -63,4 +64,22 @@ executable mrci
     , moonrock -any
   hs-source-dirs:
     interpreter
+  default-language:    Haskell2010
+
+executable moontests
+  other-modules:
+    Tests
+  build-depends:
+      base >=4.6 && < 5
+    , parsec
+    , text
+    , haskell-src-exts
+    , moonrock -any
+    , tasty < 0.11
+    , tasty-hunit
+    , tasty-quickcheck
+  hs-source-dirs:
+    test
+  main-is:
+    Main.hs
   default-language:    Haskell2010

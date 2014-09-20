@@ -20,27 +20,27 @@ instance Coloured DynExpr  where
 
 
 ----------------------------------------------------------------------
-display :: MPretty a => a -> IO ()
+display :: PrettyDynExpr a => a -> IO ()
 display c = do
   setSGR . colour $ c
-  putDoc . render $ c
+  putDoc . toPretty $ c
   setSGR []
 
 
 ----------------------------------------------------------------------
-class Coloured a => MPretty a where
-  render :: a -> Doc a
+class Coloured a => PrettyDynExpr a where
+  toPretty :: a -> Doc a
 
 
-instance MPretty DynExpr where
-  render (DynBool _ v) = text . show $ v
-  render (DynString _ v) = text . show $ v
-  render (DynSymbol _ v) = text . show $ v
-  render (DynNum _ (DInt v)) = text . show $ v
-  render (DynNum _ (DDouble v)) = text . show $ v
-  render (DynList _ elems) = brackets $ docList (map render elems)
+instance PrettyDynExpr DynExpr where
+  toPretty (DynBool _ v) = text . show $ v
+  toPretty (DynString _ v) = text . show $ v
+  toPretty (DynSymbol _ v) = text . show $ v
+  toPretty (DynNum _ (DInt v)) = text . show $ v
+  toPretty (DynNum _ (DDouble v)) = text . show $ v
+  toPretty (DynList _ elems) = brackets $ docList (map toPretty elems)
     where
       docList [] = empty
       docList [x] = x
       docList (x : xs) = x <> comma <> docList xs
-  render v = text . show $ v
+  toPretty v = text . show $ v

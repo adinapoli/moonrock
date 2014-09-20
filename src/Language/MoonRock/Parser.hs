@@ -4,6 +4,8 @@ module Language.MoonRock.Parser where
 
 import Control.Applicative hiding ((<|>), many, optional)
 import Text.Parsec.Language
+import Text.Parsec.Expr
+import Control.Monad.Identity
 import Text.Parsec.Token
 import Text.ParserCombinators.Parsec
 import Language.MoonRock.AST
@@ -11,19 +13,13 @@ import Data.Maybe
 
 
 rubyDef :: LanguageDef s
-rubyDef = LanguageDef
+rubyDef = emptyDef
             { commentStart   = "=begin"
             , commentEnd     = "=end"
             , commentLine    = "#"
             , nestedComments = True
             , identStart     = letter
             , identLetter    = alphaNum <|> oneOf ['_', '@']
-            , opStart        = opLetter emptyDef
-            , opLetter       = oneOf ":!#$%&*+./<=>?@\\^|-~"
-            , reservedOpNames= [
-              "+", "-", "^", "/", "%", "&", "|"
-            , ">", "<", "=", "!", "~", "==", "!="
-            ]
             , reservedNames  = [
                 "__LINE__", "__FILE__","__ENCODING__",
                 "BEGIN", "END",
@@ -42,12 +38,59 @@ rubyDef = LanguageDef
             }
 
 
+-- opTable = [
+--     [
+--       "+", "-", "^", "/", "%", "&", "|"
+--     , ">", "<", "=", "!", "~", "==", "!="
+--     ]
+--   ]
+
+----------------------------------------------------------------------
+operatorTable :: [[Operator String () Identity DynExpr]]
+operatorTable = [ [ prefixOp "!" DNot ]
+                , [ binaryOp "&&" DAnd AssocLeft
+                  , binaryOp "||" DOr AssocLeft
+                  ]
+                , [ binaryOp "*" DMult AssocLeft ]
+                , [ binaryOp "+" DPlus AssocLeft
+                  , binaryOp "-" DSub AssocLeft
+                  ]
+                , [ binaryOp "==" DEqual AssocNone
+                  , binaryOp "!=" DNEqual AssocNone]
+                ]
+
+----------------------------------------------------------------------
+prefixOp :: String -> (DynExpr -> DOp)
+         -> Operator String () Identity DynExpr
+prefixOp n f = Prefix $ do
+  spaces *> reservedOp lexer n <* spaces
+  loc <- getPosition
+  return $ \a -> DynOp loc (f a)
+
+----------------------------------------------------------------------
+binaryOp :: String -> (DynExpr -> DynExpr -> DOp)
+         -> Assoc -> Operator String () Identity DynExpr
+binaryOp n f = Infix $ do
+   spaces *> reservedOp lexer n <* spaces
+   loc <- getPosition
+   return $ \a b -> DynOp loc (f a b)
+
+----------------------------------------------------------------------
+opTerm :: Parser DynExpr
+opTerm = do
+  buildExpressionParser operatorTable psr
+  where
+    psr = dynExpr <|> dynParensBuried
+
+----------------------------------------------------------------------
 lexer :: TokenParser s
 lexer = makeTokenParser rubyDef
 
+----------------------------------------------------------------------
 ws :: Parser ()
 ws = whiteSpace lexer
 
+----------------------------------------------------------------------
 dynModuleImport :: Parser DynExpr
 dynModuleImport = do
   loc <- getPosition
@@ -55,6 +98,7 @@ dynModuleImport = do
   module' <- rubyStr
   return $ DynModuleImport loc module'
 
+----------------------------------------------------------------------
 dynIdentifier :: Parser DynExpr
 dynIdentifier = do
   spaces
@@ -63,6 +107,7 @@ dynIdentifier = do
   spaces
   return $ DynIdentifier loc name
 
+----------------------------------------------------------------------
 dynFunDecl :: Parser DynExpr
 dynFunDecl = do
   let parentsP = parens lexer
@@ -79,112 +124,46 @@ dynFunDecl = do
   return $ DynFunDecl loc name args body
 
 
+----------------------------------------------------------------------
 rubyStr :: Parser String
 rubyStr = stringLiteral lexer <|>
           between (char '\'')
                   (char '\'')
                   (many1 (noneOf ['\'', '\n']))
 
+----------------------------------------------------------------------
 dynString :: Parser DynExpr
 dynString = getPosition >>= \p ->
   fmap (DynString p) rubyStr
 
 
+----------------------------------------------------------------------
 dynInt :: Parser DynExpr
 dynInt = getPosition >>= \p ->
   fmap (DynNum p . DInt) (integer lexer)
 
 
+----------------------------------------------------------------------
 dynDouble :: Parser DynExpr
 dynDouble = getPosition >>= \p ->
   fmap (DynNum p . DDouble) (float lexer)
 
 
+----------------------------------------------------------------------
 dynNumber :: Parser DynExpr
 dynNumber =  try dynInt
          <|> try dynDouble
 
 
+----------------------------------------------------------------------
 dynMethodAccess :: Parser DynExpr
 dynMethodAccess = do
   spaces
   loc <- getPosition
   callChain <- sepBy dynIdentifier (dot lexer)
   return $ DynMethodAccess loc callChain
- 
---
--- DynOp
---
 
-dynNumOp :: String
-         -> (DynExpr -> DynExpr -> DOp)
-         -> Parser DynExpr
-dynNumOp sym fn = do
- spaces
- s1 <- dynNumber
- spaces
- reservedOp lexer sym
- loc <- getPosition
- spaces
- s2 <- dynNumber
- return $ DynOp loc (fn s1 s2)
-
-dynPlus :: Parser DynExpr
-dynPlus = dynNumOp "+" DPlus
-
-dynSub :: Parser DynExpr
-dynSub = dynNumOp "-" DSub
-
-dynMult :: Parser DynExpr
-dynMult = dynNumOp "*" DSub
-
-dynNot :: Parser DynExpr
-dynNot = do
- spaces
- reservedOp lexer "!"
- loc <- getPosition
- b1 <- dynBool
- return $ DynOp loc (DNot b1)
-
-dynLogic :: String
-         -> (DynExpr -> DynExpr -> DOp)
-         -> Parser DynExpr
-dynLogic sym fn = do
- spaces
- s1 <- dynBool
- spaces
- reservedOp lexer sym
- loc <- getPosition
- spaces
- s2 <- dynBool
- return $ DynOp loc (fn s1 s2)
-
-dynLogicAnd :: Parser DynExpr
-dynLogicAnd = dynLogic "&&" DLogicAnd
-
-dynLogicOr :: Parser DynExpr
-dynLogicOr = dynLogic "||" DLogicOr
-
-dynEquality :: String
-            -> (DynExpr -> DynExpr -> DOp)
-            -> Parser DynExpr
-dynEquality sym fn = do
- spaces
- s1 <- dynTerm
- spaces
- reservedOp lexer sym
- loc <- getPosition
- spaces
- s2 <- dynTerm
- return $ DynOp loc (fn s1 s2)
-
-dynEqual :: Parser DynExpr
-dynEqual = dynEquality "==" DEqual
-
-dynNEqual :: Parser DynExpr
-dynNEqual = dynEquality "!=" DNEqual
-
-
+----------------------------------------------------------------------
 dynIf :: Parser DynExpr
 dynIf = do
   spaces
@@ -205,23 +184,13 @@ dynIf = do
 
 
 dynConditional :: Parser DynExpr
-dynConditional =  try dynBool
-              <|> try dynLogicAnd
-              <|> try dynLogicOr
-              <|> try dynEqual
-              <|> try dynNEqual
+dynConditional =  dynBool
+              <|> opTerm
 
 
 dynOp :: Parser DynExpr
-dynOp =  try dynPlus
-     <|> try dynSub
-     <|> try dynMult
-     <|> try dynNot
-     <|> try dynLogicAnd
-     <|> try dynLogicOr
-     <|> try dynEqual
-     <|> try dynNEqual
-     <|> try dynIf
+dynOp =  opTerm
+     <|> dynIf
 
 -- Not sure that the distinction between DynVar
 -- and DynMethodAccess is the way to go.
@@ -309,16 +278,24 @@ dynTerm =  try dynIdentifier
        <|> try dynSymbol
        <|> try dynList
 
+----------------------------------------------------------------------
 -- Remember, the lookup order does count
 dynExpr :: Parser DynExpr
-dynExpr =  try (parens lexer dynExpr)
+dynExpr =  dynParensBuried
        <|> dynOp
        <|> dynVar
        <|> dynTerm
        <|> dynModuleImport
        <|> dynFunDecl
        <|> dynClassDecl
+       <|> dynParensBuried
 
+----------------------------------------------------------------------
+dynParensBuried :: Parser DynExpr
+dynParensBuried =  parens lexer dynExpr
+               <|> dynParensBuried
+
+----------------------------------------------------------------------
 dynHashBang :: Parser ()
 dynHashBang = optional $ try $ do
   _ <- string "#!"
@@ -326,7 +303,13 @@ dynHashBang = optional $ try $ do
   _ <- newline
   return ()
 
+----------------------------------------------------------------------
 rubyFile :: Parser [DynExpr]
 rubyFile = do
   dynHashBang
   sepBy dynExpr (many newline)
+
+parseRuby :: String -> Either String [DynExpr]
+parseRuby s = case parse rubyFile "" s of
+  Left err -> Left (show err)
+  Right r -> Right r

@@ -7,7 +7,7 @@ type Loc = SourcePos
 data DNum =
     DInt    Integer
   | DDouble Double
-  deriving Show
+  deriving (Show, Eq)
 
 data DOp =
     DPlus  DynExpr DynExpr
@@ -17,11 +17,11 @@ data DOp =
   | DEqual DynExpr DynExpr
   | DNEqual DynExpr DynExpr
   | DIf DynExpr [DynExpr] [DynExpr]
-  | DLogicAnd DynExpr DynExpr
-  | DLogicOr DynExpr DynExpr
-  deriving Show
+  | DAnd DynExpr DynExpr
+  | DOr DynExpr DynExpr
+  deriving (Show, Eq)
 
-data Class = Class String (Maybe Class) deriving Show
+data Class = Class String (Maybe Class) deriving (Show, Eq)
 
 data DynExpr =
     DynFunDecl Loc String [DynExpr] [DynExpr]
@@ -37,8 +37,8 @@ data DynExpr =
   | DynMethodAccess Loc [DynExpr]
   | DynClassDecl Loc Class [DynExpr]
   | DynBlock Loc [DynExpr] [DynExpr]
-  deriving Show
+  deriving (Show, Eq)
 
 data TExpr =
   TBool Loc Bool
-  deriving Show
+  deriving (Show, Eq)
