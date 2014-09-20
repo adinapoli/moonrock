@@ -11,7 +11,6 @@ import Text.Parsec.Prim (ParsecT)
 import Text.ParserCombinators.Parsec
 import Language.MoonRock.AST
 import Data.Maybe
-import Data.Char
 
 
 getLoc :: Monad m => ParsecT s u m Loc

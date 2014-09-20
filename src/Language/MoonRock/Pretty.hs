@@ -35,7 +35,8 @@ foldDoc (x : xs) = x <> foldDoc xs
 
 ----------------------------------------------------------------------
 nestedBlock :: Int -> [DynExpr] -> Doc [SGR]
-nestedBlock offset block = nest offset (foldDoc (map toPretty block))
+nestedBlock offset block =
+  nest offset (docIntersperse linebreak (map toPretty block))
 
 ----------------------------------------------------------------------
 docIntersperse :: Doc a -> [Doc a] -> Doc a
@@ -84,13 +85,14 @@ instance PrettyDynExpr DOp where
   toPretty (DIf cond thenBody elseBody) =
     let renderThen = if List.null thenBody
                    then text ""
-                   else text "then " <> nestedBlock 4 thenBody
+                   else text "then " <> linebreak <> nestedBlock 4 thenBody
         renderElse = if List.null elseBody
                    then text ""
-                   else text "else" <> nestedBlock 4 thenBody
+                   else text "else" <> linebreak <> nestedBlock 4 thenBody
     in text "if " <> toPretty cond
                   <> renderThen
                   <> renderElse
+                  <> linebreak
                   <> text "end"
   toPretty (DAnd d1 d2) =
     toPretty d1 <> annotate magenta (text " && ") <> toPretty d2
@@ -100,14 +102,16 @@ instance PrettyDynExpr DOp where
 ----------------------------------------------------------------------
 instance PrettyDynExpr DynExpr where
   toPretty (DynBool _ v) = coloured cyan v
-  toPretty (DynString _ v) = annotate yellow (text v)
-  toPretty (DynSymbol _ v) = coloured red v
+  toPretty (DynString _ v) = annotate yellow (dquotes (text v))
+  toPretty (DynSymbol _ v) = annotate red (text v)
   toPretty (DynNum _ n) = toPretty n
   toPretty (DynList _ elems) = brackets $ docSemi (map toPretty elems)
   toPretty (DynFunDecl _ fName args body) =
     text "def " <> text fName
                 <> parens (docSemi (map toPretty args))
+                <> linebreak
                 <> nestedBlock 4 body
+                <> linebreak
                 <> text "end"
   toPretty (DynIdentifier _ idf) = annotate blue (text idf)
   toPretty (DynModuleImport _ toImport) =
@@ -116,16 +120,19 @@ instance PrettyDynExpr DynExpr where
     toPretty varId <> text " = " <> toPretty assignment
   toPretty (DynOp _ op) = toPretty op
   toPretty (DynMethodAccess _ args) = docDot (map toPretty args)
-  toPretty (DynClassDecl _ cls body) = toPretty cls <> nestedBlock 4 body
+  toPretty (DynClassDecl _ cls body) =
+    toPretty cls <> linebreak
+                 <> nestedBlock 4 body
+                 <> linebreak <> text "end"
 
 
-pp :: DynExpr -> IO String
+pp :: DynExpr -> IO ()
 pp de = go (renderCompact . toPretty $ de)
   where
     go v = case v of
-      SEmpty -> return ""
-      SChar c rest -> (c :) `fmap` go rest
+      SEmpty -> putStr ""
+      SChar c rest -> putStr [c] >> go rest
       SAnnotStart a rest -> setSGR a >> go rest
-      SAnnotStop rest -> setSGR white >> go rest
-      SText _ txt rest -> (txt ++) `fmap` go rest
-      SLine ind rest -> (replicate ind ' ' ++) `fmap` go rest
+      SAnnotStop rest -> setSGR [] >> go rest
+      SText _ txt rest -> putStr txt >> go rest
+      SLine ind rest -> putStrLn "" >> putStr (replicate ind ' ') >> go rest

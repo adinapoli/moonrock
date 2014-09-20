@@ -38,8 +38,7 @@ repl vrn !instr = do
       Left e -> print e
       Right d -> do
         let evl = eval d
-        putStr " => "
-        mapM_ (liftM print . pp) evl
+        mapM_ pp evl
         putStrLn ""
     repl vrn (instr + 1)
 
