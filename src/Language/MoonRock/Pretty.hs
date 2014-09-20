@@ -27,6 +27,9 @@ magenta = [SetColor Foreground Vivid Magenta]
 blue :: [SGR]
 blue = [SetUnderlining SingleUnderline, SetColor Foreground Vivid Blue]
 
+bold :: [SGR]
+bold = [SetUnderlining SingleUnderline]
+
 ----------------------------------------------------------------------
 foldDoc :: [Doc a] -> Doc a
 foldDoc [] = empty
@@ -36,7 +39,7 @@ foldDoc (x : xs) = x <> foldDoc xs
 ----------------------------------------------------------------------
 nestedBlock :: Int -> [DynExpr] -> Doc [SGR]
 nestedBlock offset block =
-  nest offset (docIntersperse linebreak (map toPretty block))
+  indent offset (docIntersperse linebreak (map toPretty block))
 
 ----------------------------------------------------------------------
 docIntersperse :: Doc a -> [Doc a] -> Doc a
@@ -65,35 +68,35 @@ instance PrettyDynExpr DNum where
   toPretty (DDouble v) = coloured green v
 
 instance PrettyDynExpr Class where
-  toPretty (Class str Nothing) = text "class " <> text str
+  toPretty (Class str Nothing) = annotate bold (text "class") <+> text str
   toPretty (Class str (Just (Class str2 _))) =
-    text "class " <> text str <> text " < " <> text str2
+    annotate bold (text "class") <+> text str <> text " < " <> text str2
 
 instance PrettyDynExpr DOp where
   toPretty (DPlus d1 d2) =
-    toPretty d1 <> annotate magenta (text " + ") <> toPretty d2
+    toPretty d1 <+> annotate magenta (text "+") <+> toPretty d2
   toPretty (DSub d1 d2) =
-    toPretty d1 <> annotate magenta (text " - ") <> toPretty d2
+    toPretty d1 <+> annotate magenta (text "-") <+> toPretty d2
   toPretty (DMult d1 d2) =
-    toPretty d1 <> annotate magenta (text " * ") <> toPretty d2
+    toPretty d1 <+> annotate magenta (text "*") <+> toPretty d2
   toPretty (DNot d1) =
     annotate magenta (text "!") <> toPretty d1
   toPretty (DEqual d1 d2) =
-    toPretty d1 <> annotate magenta (text " == ") <> toPretty d2
+    toPretty d1 <+> annotate magenta (text "==") <+> toPretty d2
   toPretty (DNEqual d1 d2) = 
-    toPretty d1 <> annotate magenta (text " != ") <> toPretty d2
+    toPretty d1 <+> annotate magenta (text "!=") <+> toPretty d2
   toPretty (DIf cond thenBody elseBody) =
     let renderThen = if List.null thenBody
                    then text ""
-                   else text "then " <> linebreak <> nestedBlock 4 thenBody
+                   else text "then " <> linebreak <> nestedBlock 2 thenBody
         renderElse = if List.null elseBody
                    then text ""
-                   else text "else" <> linebreak <> nestedBlock 4 thenBody
-    in text "if " <> toPretty cond
+                   else text "else" <> linebreak <> nestedBlock 2 thenBody
+    in annotate bold (text "if") <+> toPretty cond
                   <> renderThen
                   <> renderElse
                   <> linebreak
-                  <> text "end"
+                  <> annotate bold (text "end")
   toPretty (DAnd d1 d2) =
     toPretty d1 <> annotate magenta (text " && ") <> toPretty d2
   toPretty (DOr d1 d2) =
@@ -107,27 +110,27 @@ instance PrettyDynExpr DynExpr where
   toPretty (DynNum _ n) = toPretty n
   toPretty (DynList _ elems) = brackets $ docSemi (map toPretty elems)
   toPretty (DynFunDecl _ fName args body) =
-    text "def " <> text fName
+    annotate bold (text "def") <+> text fName
                 <> parens (docSemi (map toPretty args))
                 <> linebreak
-                <> nestedBlock 4 body
+                <> nestedBlock 2 body
                 <> linebreak
-                <> text "end"
+                <> annotate bold (text "end")
   toPretty (DynIdentifier _ idf) = annotate blue (text idf)
   toPretty (DynModuleImport _ toImport) =
-    text "require " <> annotate yellow (squotes (text toImport))
+    text "require" <+> annotate yellow (squotes (text toImport))
   toPretty (DynVar _ varId assignment) =
-    toPretty varId <> text " = " <> toPretty assignment
+    toPretty varId <+> text "=" <+> toPretty assignment
   toPretty (DynOp _ op) = toPretty op
   toPretty (DynMethodAccess _ args) = docDot (map toPretty args)
   toPretty (DynClassDecl _ cls body) =
     toPretty cls <> linebreak
-                 <> nestedBlock 4 body
-                 <> linebreak <> text "end"
+                 <> nestedBlock 2 body
+                 <> linebreak <> annotate bold (text "end")
 
 
 pp :: DynExpr -> IO ()
-pp de = go (renderCompact . toPretty $ de)
+pp de = go (renderPretty 0 0 . toPretty $ de)
   where
     go v = case v of
       SEmpty -> putStr ""
@@ -135,4 +138,7 @@ pp de = go (renderCompact . toPretty $ de)
       SAnnotStart a rest -> setSGR a >> go rest
       SAnnotStop rest -> setSGR [] >> go rest
       SText _ txt rest -> putStr txt >> go rest
-      SLine ind rest -> putStrLn "" >> putStr (replicate ind ' ') >> go rest
+      SLine ind rest -> do
+        putStrLn ""
+        putStr (replicate ind ' ')
+        go rest
