@@ -39,7 +39,7 @@ repl !instr = do
       Right d -> do
         let evl = eval d
         putStr " => "
-        mapM_ display evl
+        mapM_ (print . toPretty) evl
         putStrLn ""
     repl (instr + 1)
 
@@ -47,9 +47,9 @@ repl !instr = do
 --------------------------------------------------------------------------------
 main :: IO ()
 main = do
-  version <- extractCabalVersion
+  vrn <- extractCabalVersion
   putStrLn logo
-  putStrLn $ "v." ++ T.unpack version
+  putStrLn $ "v." ++ T.unpack vrn
   putStrLn ""
   hSetBuffering stdout NoBuffering
   repl 0

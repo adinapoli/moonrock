@@ -3,7 +3,6 @@
 module Language.MoonRock.Evaluator where
 
 import Language.MoonRock.AST
-import Language.MoonRock.Pretty
 
 eval :: [DynExpr] -> [DynExpr]
 eval [] = []
