@@ -11,6 +11,7 @@ import Text.Parsec.Prim (ParsecT)
 import Text.ParserCombinators.Parsec
 import Language.MoonRock.AST
 import Data.Maybe
+import Data.Char
 
 
 getLoc :: Monad m => ParsecT s u m Loc
@@ -27,7 +28,7 @@ rubyDef = emptyDef
             , commentEnd     = "=end"
             , commentLine    = "#"
             , nestedComments = True
-            , identStart     = letter
+            , identStart     = lower <|> oneOf ['_', '@']
             , identLetter    = alphaNum <|> oneOf ['_', '@']
             , reservedNames  = [
                 "__LINE__", "__FILE__","__ENCODING__",
@@ -89,7 +90,7 @@ opTerm :: Parser DynExpr
 opTerm = do
   buildExpressionParser operatorTable psr
   where
-    psr = dynExpr <|> dynParensBuried
+    psr = dynTerm
 
 ----------------------------------------------------------------------
 lexer :: TokenParser s
@@ -181,7 +182,7 @@ dynIf = do
   reserved lexer "if"
   loc <- getLoc
   spaces
-  pred' <- dynOp
+  pred' <- dynBoolLike
   spaces
   try $ optional (reserved lexer "then")
   spaces
@@ -194,8 +195,8 @@ dynIf = do
   return $ DynOp loc (DIf pred' ifBody else')
 
 
-dynOp :: Parser DynExpr
-dynOp =  dynBool <|> opTerm
+dynBoolLike :: Parser DynExpr
+dynBoolLike = opTerm <|> dynBool
 
 
 -- Not sure that the distinction between DynVar
@@ -212,7 +213,7 @@ dynVar = try $ do
           <|> dynNumber
           <|> dynIdentifier
           <|> dynString
-          <|> dynOp
+          <|> dynBoolLike
   return $ DynVar loc callChain expr
 
 dynList :: Parser DynExpr
@@ -220,7 +221,7 @@ dynList = do
   let bracketsP = brackets lexer
   let commaP = comma lexer
   let valid =  dynTerm
-           <|> dynOp
+           <|> dynBoolLike
            <|> dynVar
   spaces
   loc <- getLoc
@@ -277,27 +278,27 @@ dynClassDecl = do
 
 
 dynTerm :: Parser DynExpr
-dynTerm =  dynIdentifier
-       <|> dynNumber
+dynTerm =  dynNumber
        <|> dynString
        <|> dynBool
        <|> dynSymbol
        <|> dynList
+       <|> try dynIdentifier
 
 ----------------------------------------------------------------------
 -- Remember, the lookup order does count
 dynExpr :: Parser DynExpr
-dynExpr = dynVar
+dynExpr =  dynVar
+       <|> dynBoolLike
        <|> dynTerm
        <|> dynIf
-       <|> dynOp
        <|> dynModuleImport
        <|> dynFunDecl
        <|> dynClassDecl
 
 ----------------------------------------------------------------------
 dynParensBuried :: Parser DynExpr
-dynParensBuried =  parens lexer dynExpr
+dynParensBuried =  parens lexer dynTerm
                <|> dynParensBuried
 
 ----------------------------------------------------------------------
@@ -313,7 +314,7 @@ rubyFile :: Parser [DynExpr]
 rubyFile = do
   let commaP = comma lexer
   dynHashBang
-  sepBy dynExpr (commaP <|> many1 newline)
+  sepBy1 dynExpr (commaP <|> many1 newline)
 
 ----------------------------------------------------------------------
 parseRuby :: String -> Either String [DynExpr]

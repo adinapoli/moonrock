@@ -29,9 +29,9 @@ extractCabalVersion = do
 
 
 --------------------------------------------------------------------------------
-repl :: Int -> IO ()
-repl !instr = do
-  putStr $ ":" ++ show instr ++ " > "
+repl :: String -> Int -> IO ()
+repl vrn !instr = do
+  putStr $ vrn ++ " ~ " ++ show instr ++ " > "
   txt <- getLine
   unless ("quit" `List.isInfixOf` txt) $ do
     case parse rubyFile "" txt of
@@ -39,9 +39,9 @@ repl !instr = do
       Right d -> do
         let evl = eval d
         putStr " => "
-        mapM_ (print . toPretty) evl
+        mapM_ (liftM print . pp) evl
         putStrLn ""
-    repl (instr + 1)
+    repl vrn (instr + 1)
 
 
 --------------------------------------------------------------------------------
@@ -49,10 +49,9 @@ main :: IO ()
 main = do
   vrn <- extractCabalVersion
   putStrLn logo
-  putStrLn $ "v." ++ T.unpack vrn
   putStrLn ""
   hSetBuffering stdout NoBuffering
-  repl 0
+  repl (T.unpack vrn) 0
 
 
 --------------------------------------------------------------------------------

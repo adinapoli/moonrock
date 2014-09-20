@@ -69,19 +69,19 @@ instance PrettyDynExpr Class where
     text "class " <> text str <> text " < " <> text str2
 
 instance PrettyDynExpr DOp where
-  toPretty (DPlus d1 d2) = 
-    toPretty d1 <> coloured magenta " + " <> toPretty d2
-  toPretty (DSub d1 d2) = 
-    toPretty d1 <> coloured magenta " - " <> toPretty d2
-  toPretty (DMult d1 d2) = 
-    toPretty d1 <> coloured magenta " * " <> toPretty d2
-  toPretty (DNot d1) = 
-    coloured magenta "!" <> toPretty d1
-  toPretty (DEqual d1 d2) = 
-    toPretty d1 <> coloured magenta " == " <> toPretty d2
+  toPretty (DPlus d1 d2) =
+    toPretty d1 <> annotate magenta (text " + ") <> toPretty d2
+  toPretty (DSub d1 d2) =
+    toPretty d1 <> annotate magenta (text " - ") <> toPretty d2
+  toPretty (DMult d1 d2) =
+    toPretty d1 <> annotate magenta (text " * ") <> toPretty d2
+  toPretty (DNot d1) =
+    annotate magenta (text "!") <> toPretty d1
+  toPretty (DEqual d1 d2) =
+    toPretty d1 <> annotate magenta (text " == ") <> toPretty d2
   toPretty (DNEqual d1 d2) = 
-    toPretty d1 <> coloured magenta " != " <> toPretty d2
-  toPretty (DIf cond thenBody elseBody) = 
+    toPretty d1 <> annotate magenta (text " != ") <> toPretty d2
+  toPretty (DIf cond thenBody elseBody) =
     let renderThen = if List.null thenBody
                    then text ""
                    else text "then " <> nestedBlock 4 thenBody
@@ -93,14 +93,14 @@ instance PrettyDynExpr DOp where
                   <> renderElse
                   <> text "end"
   toPretty (DAnd d1 d2) =
-    toPretty d1 <> coloured magenta " && " <> toPretty d2
+    toPretty d1 <> annotate magenta (text " && ") <> toPretty d2
   toPretty (DOr d1 d2) =
-    toPretty d1 <> coloured magenta " || " <> toPretty d2
+    toPretty d1 <> annotate magenta (text " || ") <> toPretty d2
 
 ----------------------------------------------------------------------
 instance PrettyDynExpr DynExpr where
   toPretty (DynBool _ v) = coloured cyan v
-  toPretty (DynString _ v) = coloured yellow v
+  toPretty (DynString _ v) = annotate yellow (text v)
   toPretty (DynSymbol _ v) = coloured red v
   toPretty (DynNum _ n) = toPretty n
   toPretty (DynList _ elems) = brackets $ docSemi (map toPretty elems)
@@ -109,11 +109,23 @@ instance PrettyDynExpr DynExpr where
                 <> parens (docSemi (map toPretty args))
                 <> nestedBlock 4 body
                 <> text "end"
-  toPretty (DynIdentifier _ idf) = coloured blue idf
+  toPretty (DynIdentifier _ idf) = annotate blue (text idf)
   toPretty (DynModuleImport _ toImport) =
-    text "require " <> squotes (coloured yellow toImport)
+    text "require " <> annotate yellow (squotes (text toImport))
   toPretty (DynVar _ varId assignment) =
     toPretty varId <> text " = " <> toPretty assignment
   toPretty (DynOp _ op) = toPretty op
   toPretty (DynMethodAccess _ args) = docDot (map toPretty args)
   toPretty (DynClassDecl _ cls body) = toPretty cls <> nestedBlock 4 body
+
+
+pp :: DynExpr -> IO String
+pp de = go (renderCompact . toPretty $ de)
+  where
+    go v = case v of
+      SEmpty -> return ""
+      SChar c rest -> (c :) `fmap` go rest
+      SAnnotStart a rest -> setSGR a >> go rest
+      SAnnotStop rest -> setSGR white >> go rest
+      SText _ txt rest -> (txt ++) `fmap` go rest
+      SLine ind rest -> (replicate ind ' ' ++) `fmap` go rest
