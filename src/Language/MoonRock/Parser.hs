@@ -28,7 +28,7 @@ rubyDef = emptyDef
             , commentLine    = "#"
             , nestedComments = True
             , identStart     = lower <|> oneOf ['_', '@']
-            , identLetter    = alphaNum <|> oneOf ['_', '@']
+            , identLetter    = alphaNum <|> oneOf ['_']
             , reservedNames  = [
                 "__LINE__", "__FILE__","__ENCODING__",
                 "BEGIN", "END",
@@ -87,9 +87,7 @@ binaryOp n f = Infix $ do
 ----------------------------------------------------------------------
 opTerm :: Parser DynExpr
 opTerm = do
-  buildExpressionParser operatorTable psr
-  where
-    psr = dynTerm
+  buildExpressionParser operatorTable dynTerm
 
 ----------------------------------------------------------------------
 lexer :: TokenParser s
@@ -104,7 +102,6 @@ dynNil = do
   ws
   loc <- getLoc
   nil <- reserved lexer "nil"
-  ws
   return $ DynNil loc nil
 
 ----------------------------------------------------------------------
@@ -122,7 +119,6 @@ dynIdentifier = do
   ws
   loc <- getLoc
   name <- identifier lexer
-  ws
   return $ DynIdentifier loc name
 
 ----------------------------------------------------------------------
@@ -134,7 +130,7 @@ dynFunDecl = do
   ws
   reserved lexer "def"
   loc <- getLoc
-  ws
+  spaces
   name <- identifier lexer
   args <- parentsP (commaP dynIdentifier)
   body <- sepBy dynExpr (semiP <|> many newline)
@@ -189,11 +185,11 @@ dynIf = do
   ws
   reserved lexer "if"
   loc <- getLoc
-  ws
+  spaces
   pred' <- dynBoolLike
-  ws
+  spaces
   optional (reserved lexer "then")
-  ws
+  spaces
   ifBody <- many1 dynTerm
   elseB <- optionMaybe $ do
              reserved lexer "else"
@@ -204,7 +200,8 @@ dynIf = do
 
 
 dynBoolLike :: Parser DynExpr
-dynBoolLike = opTerm <|> dynBool
+dynBoolLike = opTerm
+           <|> dynBool
 
 
 -- Not sure that the distinction between DynVar
@@ -214,10 +211,10 @@ dynVarAssign = try $ do
   ws
   loc <- getLoc
   callChain <- try dynMethodAccess <|> dynIdentifier
-  ws
+  spaces
   reservedOp lexer "="
-  ws
-  expr <-     dynMethodAccess
+  spaces
+  expr <-     try dynMethodAccess
           <|> dynNumber
           <|> dynIdentifier
           <|> dynString
@@ -226,12 +223,13 @@ dynVarAssign = try $ do
 
 dynList :: Parser DynExpr
 dynList = do
+  ws
   let bracketsP = brackets lexer
   let commaP = comma lexer
   let valid =  dynTerm
            <|> dynBoolLike
            <|> dynIdentifier
-  ws
+  spaces
   loc <- getLoc
   body <- bracketsP (sepBy valid commaP)
   return $ DynList loc body
@@ -245,12 +243,14 @@ dynSymbol = do
 
 dynTrue :: Parser DynExpr
 dynTrue = do
+  ws
   loc <- getLoc
   reserved lexer "true"
   return $ DynBool loc True
 
 dynFalse :: Parser DynExpr
 dynFalse = do
+  ws
   loc <- getLoc
   reserved lexer "false"
   return $ DynBool loc False
@@ -262,7 +262,7 @@ classAncestor :: Parser Class
 classAncestor = do
   ws
   reservedOp lexer "<"
-  ws
+  spaces
   cn <- className
   return $ Class cn Nothing
 
@@ -279,7 +279,9 @@ dynClassDecl = do
   reserved lexer "class"
   cn <- className
   ancestor <- optionMaybe classAncestor
+  ws
   body <- sepBy dynExpr (many newline)
+  ws
   reserved lexer "end"
   let thisClass = Class cn ancestor
   return $ DynClassDecl loc thisClass body
@@ -304,11 +306,8 @@ dynExpr =  dynVarAssign
        <|> dynFunDecl
        <|> dynClassDecl
        <|> dynTerm
+       <|> parens lexer dynExpr
 
-----------------------------------------------------------------------
-dynParensBuried :: Parser DynExpr
-dynParensBuried =  parens lexer dynTerm
-               <|> dynParensBuried
 
 ----------------------------------------------------------------------
 dynHashBang :: Parser ()

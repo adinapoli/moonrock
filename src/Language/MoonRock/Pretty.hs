@@ -143,3 +143,35 @@ pp de = go (renderPretty 0 0 . toPretty $ de)
         putStrLn ""
         putStr (replicate ind ' ')
         go rest
+
+
+data DynExprIR =
+    DynFunDeclIR String [DynExprIR] [DynExprIR]
+  | DynNumIR DNum
+  | DynStringIR String
+  | DynBoolIR Bool
+  | DynNilIR ()
+  | DynIdentifierIR String
+  | DynSymbolIR String
+  | DynModuleImportIR String
+  | DynVarIR DynExprIR DynExprIR
+  | DynListIR [DynExprIR]
+  | DynOpIR DOp
+  | DynMethodAccessIR [DynExprIR]
+  | DynClassDeclIR Class [DynExprIR]
+  deriving (Show, Eq)
+
+toIR :: DynExpr -> DynExprIR
+toIR (DynFunDecl _ a b c) = DynFunDeclIR a (map toIR b) (map toIR c)
+toIR (DynNum _ a) = DynNumIR a
+toIR (DynString _ a) = DynStringIR a
+toIR (DynBool _ a) = DynBoolIR a
+toIR (DynNil _ _) = DynNilIR ()
+toIR (DynIdentifier _ a) = DynIdentifierIR a
+toIR (DynSymbol _ a) = DynSymbolIR a
+toIR (DynModuleImport _ a) = DynModuleImportIR a
+toIR (DynVar _ a b) = DynVarIR (toIR a) (toIR b)
+toIR (DynList _ a) = DynListIR (map toIR a)
+toIR (DynOp _ a) = DynOpIR a
+toIR (DynMethodAccess _ a) = DynMethodAccessIR (map toIR a)
+toIR (DynClassDecl _ a b) = DynClassDeclIR a (map toIR b)

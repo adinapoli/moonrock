@@ -38,8 +38,7 @@ repl vrn !instr = do
       Left e -> print e
       Right d -> do
         let evl = eval d
-        mapM_ pp evl
-        putStrLn ""
+        mapM_ (\e -> pp e >> putStrLn "") evl
     repl vrn (instr + 1)
 
 

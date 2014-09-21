@@ -6,10 +6,11 @@ import           Test.Tasty.QuickCheck
 import           Language.MoonRock.AST
 import           Language.MoonRock.Parser
 import           Language.MoonRock.Pretty
+import           Control.Applicative
 
 
 --------------------------------------------------------------------------------
 testParsePPRoundTrip :: Property
 testParsePPRoundTrip =
   forAll arbitrary $ \(dyn :: DynExpr) ->
-    parseRuby (show $ toPretty dyn) == Right [dyn]
+    (map toIR <$> parseRuby (show $ toPretty dyn)) == Right (map toIR [dyn])

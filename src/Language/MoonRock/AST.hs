@@ -87,7 +87,7 @@ instance Arbitrary DynExpr where
     , DynList <$> arbitrary <*> arbitrary
     , DynOp <$> arbitrary <*> arbitrary
     , DynClassDecl <$> arbitrary <*> arbitrary <*> arbitrary
-    , DynMethodAccess <$> arbitrary <*> arbitrary
+    , DynMethodAccess <$> arbitrary <*> listOf1 arbitrary
 --    , DynBlock <$> arbitrary <*> arbitrary <*> arbitrary
     ]
 
