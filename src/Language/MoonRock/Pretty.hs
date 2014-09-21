@@ -108,6 +108,7 @@ instance PrettyDynExpr DynExpr where
   toPretty (DynString _ v) = annotate yellow (dquotes (text v))
   toPretty (DynSymbol _ v) = annotate red (text v)
   toPretty (DynNum _ n) = toPretty n
+  toPretty (DynNil _ _) = annotate red (text "nil")
   toPretty (DynList _ elems) = brackets $ docSemi (map toPretty elems)
   toPretty (DynFunDecl _ fName args body) =
     annotate bold (text "def") <+> text fName

@@ -3,6 +3,10 @@ require 'logger'
 
 require "baz"
 
+x = 30
+
+def simple()
+end
 
 # This is a comment
 class MyApp < Logger

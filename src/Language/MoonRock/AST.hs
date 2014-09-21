@@ -58,6 +58,7 @@ data DynExpr =
   | DynNum Loc DNum
   | DynString Loc String
   | DynBool Loc Bool
+  | DynNil Loc ()
   | DynIdentifier Loc String
   | DynSymbol Loc String
   | DynModuleImport Loc String
@@ -77,6 +78,7 @@ instance Arbitrary DynExpr where
                  <*> arbitrary
     , DynNum <$> arbitrary <*> arbitrary
     , DynString <$> arbitrary <*> arbitrary
+    , DynNil <$> arbitrary <*> arbitrary
     , DynBool <$> arbitrary <*> arbitrary
     , DynIdentifier <$> arbitrary <*> arbitrary
     , DynSymbol <$> arbitrary <*> arbitrary

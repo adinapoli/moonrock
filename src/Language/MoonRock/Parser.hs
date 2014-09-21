@@ -72,7 +72,7 @@ operatorTable = [ [ prefixOp "!" DNot ]
 prefixOp :: String -> (DynExpr -> DOp)
          -> Operator String () Identity DynExpr
 prefixOp n f = Prefix $ do
-  spaces *> reservedOp lexer n <* spaces
+  ws *> reservedOp lexer n <* ws
   loc <- getLoc
   return $ \a -> DynOp loc (f a)
 
@@ -80,7 +80,7 @@ prefixOp n f = Prefix $ do
 binaryOp :: String -> (DynExpr -> DynExpr -> DOp)
          -> Assoc -> Operator String () Identity DynExpr
 binaryOp n f = Infix $ do
-   spaces *> reservedOp lexer n <* spaces
+   ws *> reservedOp lexer n <* ws
    loc <- getLoc
    return $ \a b -> DynOp loc (f a b)
 
@@ -99,21 +99,30 @@ lexer = makeTokenParser rubyDef
 ws :: Parser ()
 ws = whiteSpace lexer
 
+dynNil :: Parser DynExpr
+dynNil = do
+  ws
+  loc <- getLoc
+  nil <- reserved lexer "nil"
+  ws
+  return $ DynNil loc nil
+
 ----------------------------------------------------------------------
 dynModuleImport :: Parser DynExpr
 dynModuleImport = do
   loc <- getLoc
   reserved lexer "require"
+  ws
   module' <- rubyStr
   return $ DynModuleImport loc module'
 
 ----------------------------------------------------------------------
 dynIdentifier :: Parser DynExpr
 dynIdentifier = do
-  spaces
+  ws
   loc <- getLoc
   name <- identifier lexer
-  spaces
+  ws
   return $ DynIdentifier loc name
 
 ----------------------------------------------------------------------
@@ -122,10 +131,10 @@ dynFunDecl = do
   let parentsP = parens lexer
   let commaP = commaSep lexer
   let semiP = semi lexer
-  spaces
+  ws
   reserved lexer "def"
   loc <- getLoc
-  spaces
+  ws
   name <- identifier lexer
   args <- parentsP (commaP dynIdentifier)
   body <- sepBy dynExpr (semiP <|> many newline)
@@ -166,8 +175,8 @@ dynNumber =  dynInt
 
 ----------------------------------------------------------------------
 dynMethodAccess :: Parser DynExpr
-dynMethodAccess = try $ do
-  spaces
+dynMethodAccess = do
+  ws
   loc <- getLoc
   firstId <- dynIdentifier
   skipMany1 (string ".")
@@ -177,16 +186,16 @@ dynMethodAccess = try $ do
 ----------------------------------------------------------------------
 dynIf :: Parser DynExpr
 dynIf = do
-  spaces
+  ws
   reserved lexer "if"
   loc <- getLoc
-  spaces
+  ws
   pred' <- dynBoolLike
-  spaces
-  try $ optional (reserved lexer "then")
-  spaces
+  ws
+  optional (reserved lexer "then")
+  ws
   ifBody <- many1 dynTerm
-  elseB <- optionMaybe $ try $ do
+  elseB <- optionMaybe $ do
              reserved lexer "else"
              many1 dynTerm
   reserved lexer "end"
@@ -200,14 +209,14 @@ dynBoolLike = opTerm <|> dynBool
 
 -- Not sure that the distinction between DynVar
 -- and DynMethodAccess is the way to go.
-dynVar :: Parser DynExpr
-dynVar = try $ do
-  spaces
+dynVarAssign :: Parser DynExpr
+dynVarAssign = try $ do
+  ws
   loc <- getLoc
-  callChain <- dynMethodAccess <|> dynIdentifier
-  spaces
+  callChain <- try dynMethodAccess <|> dynIdentifier
+  ws
   reservedOp lexer "="
-  spaces
+  ws
   expr <-     dynMethodAccess
           <|> dynNumber
           <|> dynIdentifier
@@ -221,15 +230,15 @@ dynList = do
   let commaP = comma lexer
   let valid =  dynTerm
            <|> dynBoolLike
-           <|> dynVar
-  spaces
+           <|> dynIdentifier
+  ws
   loc <- getLoc
   body <- bracketsP (sepBy valid commaP)
   return $ DynList loc body
 
 dynSymbol :: Parser DynExpr
 dynSymbol = do
-  spaces
+  ws
   loc <- getLoc
   syml <- char ':' *> identifier lexer
   return $ DynSymbol loc (':' : syml)
@@ -250,10 +259,10 @@ dynBool :: Parser DynExpr
 dynBool = dynTrue <|> dynFalse
 
 classAncestor :: Parser Class
-classAncestor = try $ do
-  spaces
+classAncestor = do
+  ws
   reservedOp lexer "<"
-  spaces
+  ws
   cn <- className
   return $ Class cn Nothing
 
@@ -265,7 +274,7 @@ className = do
 
 dynClassDecl :: Parser DynExpr
 dynClassDecl = do
-  spaces
+  ws
   loc <- getLoc
   reserved lexer "class"
   cn <- className
@@ -282,18 +291,19 @@ dynTerm =  dynNumber
        <|> dynBool
        <|> dynSymbol
        <|> dynList
-       <|> try dynIdentifier
+       <|> dynIdentifier
+       <|> dynNil
 
 ----------------------------------------------------------------------
 -- Remember, the lookup order does count
 dynExpr :: Parser DynExpr
-dynExpr =  dynVar
+dynExpr =  dynVarAssign
        <|> dynBoolLike
-       <|> dynTerm
        <|> dynIf
        <|> dynModuleImport
        <|> dynFunDecl
        <|> dynClassDecl
+       <|> dynTerm
 
 ----------------------------------------------------------------------
 dynParensBuried :: Parser DynExpr
@@ -302,7 +312,7 @@ dynParensBuried =  parens lexer dynTerm
 
 ----------------------------------------------------------------------
 dynHashBang :: Parser ()
-dynHashBang = optional $ try $ do
+dynHashBang = try $ optional $ do
   _ <- string "#!"
   skipMany1 (noneOf "\n")
   _ <- newline
@@ -311,9 +321,9 @@ dynHashBang = optional $ try $ do
 ----------------------------------------------------------------------
 rubyFile :: Parser [DynExpr]
 rubyFile = do
-  let commaP = comma lexer
+  let semiP = semi lexer
   dynHashBang
-  sepBy1 dynExpr (commaP <|> many1 newline)
+  sepBy1 dynExpr (semiP <|> many newline)
 
 ----------------------------------------------------------------------
 parseRuby :: String -> Either String [DynExpr]
